@@ -9,6 +9,8 @@ import android.os.Build;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
+
+import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.StandardMethodCodec;
@@ -41,6 +43,8 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
     private final PlatformViewRegistryImpl mRegistry;
 
     private FlutterView mFlutterView;
+    private io.flutter.embedding.android.FlutterView mNewFlutterView;
+    private FlutterEngine mFlutterEngine;
 
     private final HashMap<Integer, VirtualDisplayController> vdControllers;
 
@@ -49,8 +53,9 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
         vdControllers = new HashMap<>();
     }
 
+    // NOTE: This method only makes sense in old embedding
     public void attachFlutterView(FlutterView view) {
-        if (mFlutterView != null)
+        if (mFlutterView != null || mNewFlutterView != null)
             throw new AssertionError(
                     "A PlatformViewsController can only be attached to a single FlutterView.\n" +
                     "attachFlutterView was called while a FlutterView was already attached."
@@ -60,9 +65,28 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
         channel.setMethodCallHandler(this);
     }
 
+    // NOTE: This method only makes sense in new embedding
+    public void attachFlutterView(io.flutter.embedding.android.FlutterView view, FlutterEngine flutterEngine) {
+        if (mNewFlutterView != null || mFlutterView != null)
+            throw new AssertionError(
+                "A PlatformViewsController can only be attached to a single FlutterView.\n" +
+                    "attachFlutterView was called while a FlutterView was already attached."
+            );
+        mNewFlutterView = view;
+        mFlutterEngine = flutterEngine;
+        MethodChannel channel = new MethodChannel(flutterEngine.getDartExecutor(), CHANNEL_NAME, StandardMethodCodec.INSTANCE);
+        channel.setMethodCallHandler(this);
+    }
+
     public void detachFlutterView() {
-        mFlutterView.setMessageHandler(CHANNEL_NAME, null);
-        mFlutterView = null;
+        if (mFlutterView != null) {
+            mFlutterView.setMessageHandler(CHANNEL_NAME, null);
+            mFlutterView = null;
+        } else {
+            mFlutterEngine.getDartExecutor().setMessageHandler(CHANNEL_NAME, null);
+            mNewFlutterView = null;
+            mFlutterEngine = null;
+        }
     }
 
     public PlatformViewRegistry getRegistry() {
@@ -146,9 +170,11 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
             createParams = viewFactory.getCreateArgsCodec().decodeMessage(ByteBuffer.wrap((byte[]) args.get("params")));
         }
 
-        TextureRegistry.SurfaceTextureEntry textureEntry = mFlutterView.createSurfaceTexture();
+        TextureRegistry.SurfaceTextureEntry textureEntry = mFlutterView != null
+            ? mFlutterView.createSurfaceTexture()
+            : mFlutterEngine.getRenderer().createSurfaceTexture();
         VirtualDisplayController vdController = VirtualDisplayController.create(
-                mFlutterView.getContext(),
+                mFlutterView != null ? mFlutterView.getContext() : mNewFlutterView.getContext(),
                 viewFactory,
                 textureEntry.surfaceTexture(),
                 toPhysicalPixels(logicalWidth),
@@ -222,7 +248,9 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
     private void onTouch(MethodCall call, MethodChannel.Result result) {
         List<Object> args = call.arguments();
 
-        float density = mFlutterView.getContext().getResources().getDisplayMetrics().density;
+        float density = mFlutterView != null
+            ? mFlutterView.getContext().getResources().getDisplayMetrics().density
+            : mNewFlutterView.getContext().getResources().getDisplayMetrics().density;
 
         int id = (int) args.get(0);
         Number downTime = (Number) args.get(1);
@@ -353,7 +381,9 @@ public class PlatformViewsController implements MethodChannel.MethodCallHandler 
     }
 
     private int toPhysicalPixels(double logicalPixels) {
-        float density = mFlutterView.getContext().getResources().getDisplayMetrics().density;
+        float density = mFlutterView != null
+            ? mFlutterView.getContext().getResources().getDisplayMetrics().density
+            : mNewFlutterView.getContext().getResources().getDisplayMetrics().density;
         return (int) Math.round(logicalPixels * density);
     }
 
