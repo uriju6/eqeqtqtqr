@@ -23,15 +23,15 @@ import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
 
 /**
  * Interface between Flutter embedding's Java code and Flutter engine's C/C++ code.
- *
+ * <p>
  * WARNING: THIS CLASS IS EXPERIMENTAL. DO NOT SHIP A DEPENDENCY ON THIS CODE.
  * IF YOU USE IT, WE WILL BREAK YOU.
- *
+ * <p>
  * Flutter's engine is built with C/C++. The Android Flutter embedding is responsible for
  * coordinating Android OS events and app user interactions with the C/C++ engine. Such coordination
  * requires messaging from an Android app in Java code to the C/C++ engine code. This
  * communication requires a JNI (Java Native Interface) API to cross the Java/native boundary.
- *
+ * <p>
  * The entirety of Flutter's JNI API is codified in {@code FlutterJNI}. There are multiple reasons
  * that all such calls are centralized in one class. First, JNI calls are inherently static and
  * contain no Java implementation, therefore there is little reason to associate calls with different
@@ -40,7 +40,7 @@ import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
  * developers are not familiar with native development or JNI intricacies, therefore it is in the
  * interest of future maintenance to reduce the API surface that includes JNI declarations. Thus,
  * all Flutter JNI calls are centralized in {@code FlutterJNI}.
- *
+ * <p>
  * Despite the fact that individual JNI calls are inherently static, there is state that exists
  * within {@code FlutterJNI}. Most calls within {@code FlutterJNI} correspond to a specific
  * "platform view", of which there may be many. Therefore, each {@code FlutterJNI} instance holds
@@ -48,7 +48,7 @@ import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
  * the native C/C++ engine code. That ID is passed to every platform-view-specific native method.
  * ID management is handled within {@code FlutterJNI} so that developers don't have to hold onto
  * that ID.
- *
+ * <p>
  * To connect part of an Android app to Flutter's C/C++ engine, instantiate a {@code FlutterJNI} and
  * then attach it to the native side:
  *
@@ -66,7 +66,7 @@ import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
  *
  * To provide a visual, interactive surface for Flutter rendering and touch events, register a
  * {@link FlutterRenderer.RenderSurface} with {@link #setRenderSurface(FlutterRenderer.RenderSurface)}
- *
+ * <p>
  * To receive callbacks for certain events that occur on the native side, register listeners:
  *
  * <ol>
@@ -75,9 +75,9 @@ import io.flutter.embedding.engine.renderer.OnFirstFrameRenderedListener;
  * </ol>
  *
  * To facilitate platform messages between Java and Dart running in Flutter, register a handler:
- *
+ * <p>
  * {@link #setPlatformMessageHandler(PlatformMessageHandler)}
- *
+ * <p>
  * To invoke a native method that is not associated with a platform view, invoke it statically:
  *
  * {@code
@@ -388,6 +388,10 @@ public class FlutterJNI {
   public void attachToNative(boolean isBackgroundView) {
     ensureNotAttachedToNative();
     nativePlatformViewId = nativeAttach(this, isBackgroundView);
+
+    if (!isAttached()) {
+      throw new RuntimeException("FlutterJNI failed to attach to native.");
+    }
   }
 
   private native long nativeAttach(FlutterJNI flutterJNI, boolean isBackgroundView);
