@@ -4,6 +4,7 @@
 
 package io.flutter.embedding.android;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -17,7 +18,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.FragmentActivity;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
@@ -67,7 +67,7 @@ import io.flutter.view.FlutterMain;
  * {@code Fragment}.
  */
 // TODO(mattcarroll): explain each call forwarded to Fragment (first requires resolution of PluginRegistry API).
-public class FullFlutterActivity extends FragmentActivity implements OnFirstFrameRenderedListener {
+public class FullFlutterActivity extends Activity implements OnFirstFrameRenderedListener {
   private static final String TAG = "FlutterActivity";
 
   // Meta-data arguments, processed from manifest XML.
@@ -327,7 +327,7 @@ public class FullFlutterActivity extends FragmentActivity implements OnFirstFram
       // which means there shouldn't be any possibility for the Fragment Lifecycle to get out of
       // sync with the Activity. We use the Fragment's Lifecycle because it is possible that the
       // attached Activity is not a LifecycleOwner.
-      flutterEngine.getActivityControlSurface().attachToActivity(this, getLifecycle());
+//      flutterEngine.getActivityControlSurface().attachToActivity(this, getLifecycle());
     }
   }
 
@@ -485,11 +485,11 @@ public class FullFlutterActivity extends FragmentActivity implements OnFirstFram
 
     if (shouldAttachEngineToActivity()) {
       // Notify plugins that they are no longer attached to an Activity.
-      if (isChangingConfigurations()) {
-        flutterEngine.getActivityControlSurface().detachFromActivityForConfigChanges();
-      } else {
-        flutterEngine.getActivityControlSurface().detachFromActivity();
-      }
+//      if (isChangingConfigurations()) {
+//        flutterEngine.getActivityControlSurface().detachFromActivityForConfigChanges();
+//      } else {
+//        flutterEngine.getActivityControlSurface().detachFromActivity();
+//      }
     }
 
     // Null out the platformPlugin to avoid a possible retain cycle between the plugin, this Fragment,
