@@ -39,8 +39,8 @@ import io.flutter.Log;
 import io.flutter.embedding.android.FlutterActivityLaunchConfigs.BackgroundMode;
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.FlutterShellArgs;
+import io.flutter.embedding.engine.loader.FlutterLoader;
 import io.flutter.plugin.platform.PlatformPlugin;
-import io.flutter.view.FlutterMain;
 
 /**
  * A Flutter {@code Activity} that is based upon {@link FragmentActivity}.
@@ -582,8 +582,7 @@ public class FlutterFragmentActivity extends FragmentActivity
    * included in the launching {@code Intent}, that data String is interpreted as an app bundle
    * path.
    *
-   * <p>By default, the app bundle path is obtained from {@link
-   * FlutterMain#findAppBundlePath(Context)}.
+   * <p>By default, the app bundle path is obtained from {@link FlutterLoader#findAppBundlePath()}.
    *
    * <p>Subclasses may override this method to return a custom app bundle path.
    */
@@ -601,8 +600,7 @@ public class FlutterFragmentActivity extends FragmentActivity
     }
 
     // Return the default app bundle path.
-    // TODO(mattcarroll): move app bundle resolution into an appropriately named class.
-    return FlutterMain.findAppBundlePath();
+    return FlutterLoader.getInstance().findAppBundlePath();
   }
 
   /**

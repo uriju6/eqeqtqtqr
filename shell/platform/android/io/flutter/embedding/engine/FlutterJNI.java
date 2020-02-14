@@ -181,6 +181,17 @@ public class FlutterJNI {
    * <p>This method must not be invoked if {@code FlutterJNI} is already attached to native.
    */
   @UiThread
+  public void attachToNative() {
+    ensureRunningOnMainThread();
+    ensureNotAttachedToNative();
+    nativePlatformViewId = nativeAttach(this, false);
+  }
+
+  /**
+   * Deprecated - Use {@link #attachToNative()} instead for the v2 Android embedding.
+   */
+  @Deprecated
+  @UiThread
   public void attachToNative(boolean isBackgroundView) {
     ensureRunningOnMainThread();
     ensureNotAttachedToNative();
@@ -808,5 +819,10 @@ public class FlutterJNI {
 
   public interface AsyncWaitForVsyncDelegate {
     void asyncWaitForVsync(final long cookie);
+  }
+
+  public interface Factory {
+    @NonNull
+    FlutterJNI createFlutterJNI();
   }
 }

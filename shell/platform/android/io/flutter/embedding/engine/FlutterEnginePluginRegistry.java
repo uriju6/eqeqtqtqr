@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import io.flutter.Log;
+import io.flutter.embedding.AssetLocator;
 import io.flutter.embedding.engine.loader.FlutterLoader;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.PluginRegistry;
@@ -88,7 +89,7 @@ class FlutterEnginePluginRegistry
   FlutterEnginePluginRegistry(
       @NonNull Context appContext,
       @NonNull FlutterEngine flutterEngine,
-      @NonNull FlutterLoader flutterLoader) {
+      @NonNull AssetLocator assetLocator) {
     this.flutterEngine = flutterEngine;
     pluginBinding =
         new FlutterPlugin.FlutterPluginBinding(
@@ -97,7 +98,7 @@ class FlutterEnginePluginRegistry
             flutterEngine.getDartExecutor(),
             flutterEngine.getRenderer(),
             flutterEngine.getPlatformViewsController().getRegistry(),
-            new DefaultFlutterAssets(flutterLoader));
+            new DefaultFlutterAssets(assetLocator));
   }
 
   public void destroy() {
@@ -571,28 +572,28 @@ class FlutterEnginePluginRegistry
   // ----- End ContentProviderControlSurface -----
 
   private static class DefaultFlutterAssets implements FlutterPlugin.FlutterAssets {
-    final FlutterLoader flutterLoader;
+    final AssetLocator assetLocator;
 
-    private DefaultFlutterAssets(@NonNull FlutterLoader flutterLoader) {
-      this.flutterLoader = flutterLoader;
+    private DefaultFlutterAssets(@NonNull AssetLocator assetLocator) {
+      this.assetLocator = assetLocator;
     }
 
     public String getAssetFilePathByName(@NonNull String assetFileName) {
-      return flutterLoader.getLookupKeyForAsset(assetFileName);
+      return assetLocator.getLookupKeyForAsset(assetFileName);
     }
 
     public String getAssetFilePathByName(
         @NonNull String assetFileName, @NonNull String packageName) {
-      return flutterLoader.getLookupKeyForAsset(assetFileName, packageName);
+      return assetLocator.getLookupKeyForAsset(assetFileName, packageName);
     }
 
     public String getAssetFilePathBySubpath(@NonNull String assetSubpath) {
-      return flutterLoader.getLookupKeyForAsset(assetSubpath);
+      return assetLocator.getLookupKeyForAsset(assetSubpath);
     }
 
     public String getAssetFilePathBySubpath(
         @NonNull String assetSubpath, @NonNull String packageName) {
-      return flutterLoader.getLookupKeyForAsset(assetSubpath, packageName);
+      return assetLocator.getLookupKeyForAsset(assetSubpath, packageName);
     }
   }
 

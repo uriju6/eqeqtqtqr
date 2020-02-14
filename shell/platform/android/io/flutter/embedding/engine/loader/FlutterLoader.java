@@ -17,6 +17,8 @@ import android.support.annotation.Nullable;
 import android.util.Log;
 import android.view.WindowManager;
 import io.flutter.BuildConfig;
+import io.flutter.embedding.AssetLocator;
+import io.flutter.embedding.AssetLocator.Default;
 import io.flutter.embedding.engine.FlutterJNI;
 import io.flutter.util.PathUtils;
 import io.flutter.view.VsyncWaiter;
@@ -52,12 +54,6 @@ public class FlutterLoader {
   private static final String DEFAULT_KERNEL_BLOB = "kernel_blob.bin";
   private static final String DEFAULT_FLUTTER_ASSETS_DIR = "flutter_assets";
 
-  // Mutable because default values can be overridden via config properties
-  private String aotSharedLibraryName = DEFAULT_AOT_SHARED_LIBRARY_NAME;
-  private String vmSnapshotData = DEFAULT_VM_SNAPSHOT_DATA;
-  private String isolateSnapshotData = DEFAULT_ISOLATE_SNAPSHOT_DATA;
-  private String flutterAssetsDir = DEFAULT_FLUTTER_ASSETS_DIR;
-
   private static FlutterLoader instance;
 
   /**
@@ -78,6 +74,8 @@ public class FlutterLoader {
   private boolean initialized = false;
   @Nullable private ResourceExtractor resourceExtractor;
   @Nullable private Settings settings;
+  @Nullable private Config config;
+  @Nullable private AssetLocator assetLocator;
 
   /**
    * Starts initialization of the native system.
@@ -99,7 +97,8 @@ public class FlutterLoader {
    * @param applicationContext The Android application context.
    * @param settings Configuration settings.
    */
-  public void startInitialization(@NonNull Context applicationContext, @NonNull Settings settings) {
+  public void startInitialization(
+      @NonNull Context applicationContext, @NonNull Settings settings, @NonNull Config config) {
     // Do not run startInitialization more than once.
     if (this.settings != null) {
       return;
@@ -112,9 +111,10 @@ public class FlutterLoader {
     applicationContext = applicationContext.getApplicationContext();
 
     this.settings = settings;
+    this.config = config;
+    this.assetLocator = new Default(config.flutterAssetsDir);
 
     long initStartTimestampMillis = SystemClock.uptimeMillis();
-    initConfig(applicationContext);
     initResources(applicationContext);
 
     System.loadLibrary("flutter");
@@ -130,6 +130,48 @@ public class FlutterLoader {
     // of the JNI call is negligible).
     long initTimeMillis = SystemClock.uptimeMillis() - initStartTimestampMillis;
     FlutterJNI.nativeRecordStartTimestamp(initTimeMillis);
+  }
+
+  /**
+   * Deprecated - use {@link #startInitialization(Context, Settings, Config)} instead, which allows
+   * for explicit configuration of resource paths for Dart initialization.
+   */
+  @Deprecated
+  public void startInitialization(@NonNull Context applicationContext, @NonNull Settings settings) {
+    Config config = createConfigFromManifestMetadata(applicationContext);
+    this.startInitialization(applicationContext, settings, config);
+  }
+
+  /**
+   * Create a {@link Config} by obtaining resource paths from the manifest XML file, falling back to
+   * default values.
+   */
+  @NonNull
+  private Config createConfigFromManifestMetadata(@NonNull Context applicationContext) {
+    Bundle metadata = getApplicationInfo(applicationContext).metaData;
+
+    // There isn't a `<meta-data>` tag as a direct child of `<application>` in
+    // `AndroidManifest.xml`.
+    if (metadata == null) {
+      return new Config(
+          DEFAULT_AOT_SHARED_LIBRARY_NAME,
+          DEFAULT_FLUTTER_ASSETS_DIR,
+          DEFAULT_VM_SNAPSHOT_DATA,
+          DEFAULT_ISOLATE_SNAPSHOT_DATA);
+    }
+
+    // Read resource paths from the Android manifest file.
+    String aotSharedLibraryName =
+        metadata.getString(PUBLIC_AOT_SHARED_LIBRARY_NAME, DEFAULT_AOT_SHARED_LIBRARY_NAME);
+    String flutterAssetsDir =
+        metadata.getString(PUBLIC_FLUTTER_ASSETS_DIR_KEY, DEFAULT_FLUTTER_ASSETS_DIR);
+    String vmSnapshotData =
+        metadata.getString(PUBLIC_VM_SNAPSHOT_DATA_KEY, DEFAULT_VM_SNAPSHOT_DATA);
+    String isolateSnapshotData =
+        metadata.getString(PUBLIC_ISOLATE_SNAPSHOT_DATA_KEY, DEFAULT_ISOLATE_SNAPSHOT_DATA);
+
+    // Return a Config based on Android manifest metadata values.
+    return new Config(aotSharedLibraryName, flutterAssetsDir, vmSnapshotData, isolateSnapshotData);
   }
 
   /**
@@ -175,13 +217,15 @@ public class FlutterLoader {
       String kernelPath = null;
       if (BuildConfig.DEBUG || BuildConfig.JIT_RELEASE) {
         String snapshotAssetPath =
-            PathUtils.getDataDirectory(applicationContext) + File.separator + flutterAssetsDir;
+            PathUtils.getDataDirectory(applicationContext)
+                + File.separator
+                + config.flutterAssetsDir;
         kernelPath = snapshotAssetPath + File.separator + DEFAULT_KERNEL_BLOB;
         shellArgs.add("--" + SNAPSHOT_ASSET_PATH_KEY + "=" + snapshotAssetPath);
-        shellArgs.add("--" + VM_SNAPSHOT_DATA_KEY + "=" + vmSnapshotData);
-        shellArgs.add("--" + ISOLATE_SNAPSHOT_DATA_KEY + "=" + isolateSnapshotData);
+        shellArgs.add("--" + VM_SNAPSHOT_DATA_KEY + "=" + config.vmSnapshotData);
+        shellArgs.add("--" + ISOLATE_SNAPSHOT_DATA_KEY + "=" + config.isolateSnapshotData);
       } else {
-        shellArgs.add("--" + AOT_SHARED_LIBRARY_NAME + "=" + aotSharedLibraryName);
+        shellArgs.add("--" + AOT_SHARED_LIBRARY_NAME + "=" + config.aotSharedLibraryName);
 
         // Most devices can load the AOT shared library based on the library name
         // with no directory path.  Provide a fully qualified path to the library
@@ -192,7 +236,7 @@ public class FlutterLoader {
                 + "="
                 + applicationInfo.nativeLibraryDir
                 + File.separator
-                + aotSharedLibraryName);
+                + config.aotSharedLibraryName);
       }
 
       shellArgs.add("--cache-dir-path=" + PathUtils.getCacheDirectory(applicationContext));
@@ -270,29 +314,6 @@ public class FlutterLoader {
     }
   }
 
-  /**
-   * Initialize our Flutter config values by obtaining them from the manifest XML file, falling back
-   * to default values.
-   */
-  private void initConfig(@NonNull Context applicationContext) {
-    Bundle metadata = getApplicationInfo(applicationContext).metaData;
-
-    // There isn't a `<meta-data>` tag as a direct child of `<application>` in
-    // `AndroidManifest.xml`.
-    if (metadata == null) {
-      return;
-    }
-
-    aotSharedLibraryName =
-        metadata.getString(PUBLIC_AOT_SHARED_LIBRARY_NAME, DEFAULT_AOT_SHARED_LIBRARY_NAME);
-    flutterAssetsDir =
-        metadata.getString(PUBLIC_FLUTTER_ASSETS_DIR_KEY, DEFAULT_FLUTTER_ASSETS_DIR);
-
-    vmSnapshotData = metadata.getString(PUBLIC_VM_SNAPSHOT_DATA_KEY, DEFAULT_VM_SNAPSHOT_DATA);
-    isolateSnapshotData =
-        metadata.getString(PUBLIC_ISOLATE_SNAPSHOT_DATA_KEY, DEFAULT_ISOLATE_SNAPSHOT_DATA);
-  }
-
   /** Extract assets out of the APK that need to be cached as uncompressed files on disk. */
   private void initResources(@NonNull Context applicationContext) {
     new ResourceCleaner(applicationContext).start();
@@ -308,48 +329,74 @@ public class FlutterLoader {
       // In debug/JIT mode these assets will be written to disk and then
       // mapped into memory so they can be provided to the Dart VM.
       resourceExtractor
-          .addResource(fullAssetPathFrom(vmSnapshotData))
-          .addResource(fullAssetPathFrom(isolateSnapshotData))
-          .addResource(fullAssetPathFrom(DEFAULT_KERNEL_BLOB));
+          .addResource(assetLocator.fullAssetPathFrom(config.vmSnapshotData))
+          .addResource(assetLocator.fullAssetPathFrom(config.isolateSnapshotData))
+          .addResource(assetLocator.fullAssetPathFrom(DEFAULT_KERNEL_BLOB));
 
       resourceExtractor.start();
     }
   }
 
+  private boolean isInitialized() {
+    return settings != null;
+  }
+
   @NonNull
   public String findAppBundlePath() {
-    return flutterAssetsDir;
+    return config.flutterAssetsDir;
+  }
+
+  @NonNull
+  public AssetLocator getAssetLocator() {
+    if (!isInitialized()) {
+      throw new IllegalStateException(
+          "FlutterLoader must be initialized before querying its AssetLocator.");
+    }
+
+    return assetLocator;
   }
 
   /**
-   * Returns the file name for the given asset. The returned file name can be used to access the
-   * asset in the APK through the {@link android.content.res.AssetManager} API.
-   *
-   * @param asset the name of the asset. The name can be hierarchical
-   * @return the filename to be used with {@link android.content.res.AssetManager}
+   * Deprecated - use {@link AssetLocator#getLookupKeyForAsset(String)} instead. An {@link
+   * AssetLocator} is available via {@link #getAssetLocator()}.
    */
+  @Deprecated
   @NonNull
   public String getLookupKeyForAsset(@NonNull String asset) {
-    return fullAssetPathFrom(asset);
+    return assetLocator.getLookupKeyForAsset(asset);
   }
 
   /**
-   * Returns the file name for the given asset which originates from the specified packageName. The
-   * returned file name can be used to access the asset in the APK through the {@link
-   * android.content.res.AssetManager} API.
-   *
-   * @param asset the name of the asset. The name can be hierarchical
-   * @param packageName the name of the package from which the asset originates
-   * @return the file name to be used with {@link android.content.res.AssetManager}
+   * Deprecated - use {@link AssetLocator#getLookupKeyForAsset(String, String)} instead. An * {@link
+   * AssetLocator} is available via {@link #getAssetLocator()}.
    */
+  @Deprecated
   @NonNull
   public String getLookupKeyForAsset(@NonNull String asset, @NonNull String packageName) {
-    return getLookupKeyForAsset("packages" + File.separator + packageName + File.separator + asset);
+    return assetLocator.getLookupKeyForAsset(asset, packageName);
   }
 
-  @NonNull
-  private String fullAssetPathFrom(@NonNull String filePath) {
-    return flutterAssetsDir + File.separator + filePath;
+  public interface Factory {
+    @NonNull
+    FlutterLoader createFlutterLoader();
+  }
+
+  public static class Config {
+    public final String aotSharedLibraryName;
+    public final String flutterAssetsDir;
+    public final String vmSnapshotData;
+    public final String isolateSnapshotData;
+
+    public Config(
+        @NonNull String aotSharedLibraryName,
+        @NonNull String flutterAssetsDir,
+        @NonNull String vmSnapshotData,
+        @NonNull String isolateSnapshotData) {
+      this.aotSharedLibraryName = aotSharedLibraryName;
+      this.flutterAssetsDir = flutterAssetsDir;
+      this.vmSnapshotData = vmSnapshotData;
+      this.isolateSnapshotData = isolateSnapshotData;
+    }
   }
 
   public static class Settings {

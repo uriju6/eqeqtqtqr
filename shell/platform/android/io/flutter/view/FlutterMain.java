@@ -117,7 +117,7 @@ public class FlutterMain {
    */
   @NonNull
   public static String getLookupKeyForAsset(@NonNull String asset) {
-    return FlutterLoader.getInstance().getLookupKeyForAsset(asset);
+    return FlutterLoader.getInstance().getAssetLocator().getLookupKeyForAsset(asset);
   }
 
   /**
@@ -131,7 +131,7 @@ public class FlutterMain {
    */
   @NonNull
   public static String getLookupKeyForAsset(@NonNull String asset, @NonNull String packageName) {
-    return FlutterLoader.getInstance().getLookupKeyForAsset(asset, packageName);
+    return FlutterLoader.getInstance().getAssetLocator().getLookupKeyForAsset(asset, packageName);
   }
 
   private static boolean isRunningInRobolectricTest = false;

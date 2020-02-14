@@ -10,10 +10,10 @@ import android.support.annotation.Nullable;
 import android.support.annotation.UiThread;
 import io.flutter.Log;
 import io.flutter.embedding.engine.FlutterJNI;
+import io.flutter.embedding.engine.loader.FlutterLoader;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.StringCodec;
 import io.flutter.view.FlutterCallbackInformation;
-import io.flutter.view.FlutterMain;
 import java.nio.ByteBuffer;
 
 /**
@@ -61,6 +61,15 @@ public class DartExecutor implements BinaryMessenger {
     this.dartMessenger = new DartMessenger(flutterJNI);
     dartMessenger.setMessageHandler("flutter/isolate", isolateChannelMessageHandler);
     this.binaryMessenger = new DefaultBinaryMessenger(dartMessenger);
+  }
+
+  /**
+   * Returns the JNI bridge that this {@code DartExecutor} uses to communicate with Flutter's native
+   * code.
+   */
+  @NonNull
+  public FlutterJNI getFlutterJNI() {
+    return flutterJNI;
   }
 
   /**
@@ -240,7 +249,7 @@ public class DartExecutor implements BinaryMessenger {
   public static class DartEntrypoint {
     @NonNull
     public static DartEntrypoint createDefault() {
-      return new DartEntrypoint(FlutterMain.findAppBundlePath(), "main");
+      return new DartEntrypoint(FlutterLoader.getInstance().findAppBundlePath(), "main");
     }
 
     /** The path within the AssetManager where the app will look for assets. */

@@ -8,6 +8,7 @@ import android.content.Context;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import io.flutter.Log;
+import io.flutter.embedding.AssetLocator;
 import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.embedding.engine.loader.FlutterLoader;
 import io.flutter.embedding.engine.plugins.PluginRegistry;
@@ -226,7 +227,48 @@ public class FlutterEngine {
     this.platformViewsController = platformViewsController;
 
     this.pluginRegistry =
-        new FlutterEnginePluginRegistry(context.getApplicationContext(), this, flutterLoader);
+        new FlutterEnginePluginRegistry(context.getApplicationContext(), this, flutterLoader.getAssetLocator());
+
+    if (automaticallyRegisterPlugins) {
+      registerPlugins();
+    }
+  }
+
+  /**
+   * Constructs a new {@code FlutterEngine} by wrapping around the provided {@code DartExecutor}.
+   *
+   * <p>Once this method is invoked, the given {@link DartExecutor} is permanently part of this
+   * {@code FlutterEngine}. If a standalone {@link DartExecutor} is desired, without standard Flutter
+   * method channels and rendering, a new one must be created.
+   */
+  public FlutterEngine(
+      @NonNull Context context,
+      @NonNull DartExecutor dartExecutor,
+      @NonNull AssetLocator assetLocator,
+      @NonNull PlatformViewsController platformViewsController,
+      boolean automaticallyRegisterPlugins
+  ) {
+    this.flutterJNI = dartExecutor.getFlutterJNI();
+    this.flutterJNI.addEngineLifecycleListener(engineLifecycleListener);
+
+    this.dartExecutor = dartExecutor;
+
+    this.renderer = new FlutterRenderer(flutterJNI);
+
+    accessibilityChannel = new AccessibilityChannel(dartExecutor, flutterJNI);
+    keyEventChannel = new KeyEventChannel(dartExecutor);
+    lifecycleChannel = new LifecycleChannel(dartExecutor);
+    localizationChannel = new LocalizationChannel(dartExecutor);
+    navigationChannel = new NavigationChannel(dartExecutor);
+    platformChannel = new PlatformChannel(dartExecutor);
+    settingsChannel = new SettingsChannel(dartExecutor);
+    systemChannel = new SystemChannel(dartExecutor);
+    textInputChannel = new TextInputChannel(dartExecutor);
+
+    this.platformViewsController = platformViewsController;
+
+    this.pluginRegistry =
+        new FlutterEnginePluginRegistry(context.getApplicationContext(), this, assetLocator);
 
     if (automaticallyRegisterPlugins) {
       registerPlugins();
@@ -235,8 +277,7 @@ public class FlutterEngine {
 
   private void attachToJni() {
     Log.v(TAG, "Attaching to JNI.");
-    // TODO(mattcarroll): update native call to not take in "isBackgroundView"
-    flutterJNI.attachToNative(false);
+    flutterJNI.attachToNative();
 
     if (!isAttachedToJni()) {
       throw new RuntimeException("FlutterEngine failed to attach to its native Object reference.");
