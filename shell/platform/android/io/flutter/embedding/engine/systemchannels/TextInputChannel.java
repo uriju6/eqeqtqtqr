@@ -450,6 +450,7 @@ public class TextInputChannel {
           json.optBoolean("autocorrect", true),
           json.optBoolean("enableSuggestions"),
           json.optBoolean("enableIMEPersonalizedLearning"),
+          json.optBoolean("enableDeltaModel"),
           TextCapitalization.fromValue(json.getString("textCapitalization")),
           InputType.fromJson(json.getJSONObject("inputType")),
           inputAction,
@@ -600,6 +601,7 @@ public class TextInputChannel {
     public final boolean autocorrect;
     public final boolean enableSuggestions;
     public final boolean enableIMEPersonalizedLearning;
+    public final boolean enableDeltaModel;
     @NonNull public final TextCapitalization textCapitalization;
     @NonNull public final InputType inputType;
     @Nullable public final Integer inputAction;
@@ -612,6 +614,7 @@ public class TextInputChannel {
         boolean autocorrect,
         boolean enableSuggestions,
         boolean enableIMEPersonalizedLearning,
+        boolean enableDeltaModel,
         @NonNull TextCapitalization textCapitalization,
         @NonNull InputType inputType,
         @Nullable Integer inputAction,
@@ -622,6 +625,7 @@ public class TextInputChannel {
       this.autocorrect = autocorrect;
       this.enableSuggestions = enableSuggestions;
       this.enableIMEPersonalizedLearning = enableIMEPersonalizedLearning;
+      this.enableDeltaModel = enableDeltaModel;
       this.textCapitalization = textCapitalization;
       this.inputType = inputType;
       this.inputAction = inputAction;
